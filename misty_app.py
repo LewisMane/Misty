@@ -2,7 +2,7 @@ import streamlit as st
 from PIL import Image, UnidentifiedImageError
 import os
 
-st.title("📸 Company Event Photo Gallery")
+st.title("📸 Misty Mountain Group 2 Photo Gallery")
 
 # Set your image directory
 IMAGE_DIR = "GROUP 2"
