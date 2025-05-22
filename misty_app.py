@@ -1,64 +1,60 @@
 import streamlit as st
-from PIL import Image, UnidentifiedImageError
 import os
+from PIL import Image, UnidentifiedImageError
 
-st.set_page_config(page_title="📸 Event Photo Gallery", layout="wide")
-st.title("📸 Company Event Photo Gallery")
+# Page config
+st.set_page_config(page_title="Misty Mount Photo Gallery", layout="wide")
+st.title("\U0001F4F8 Misty Mount Photo Gallery")
+st.markdown("""
+Welcome to the Misty Mount event gallery. Use the sidebar to browse images by folder.
+""")
 
 # Constants
-BASE_DIR = "GROUP 2"
-IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".gif"}
+IMAGE_ROOT_DIR = "GROUP 2"
+IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".bmp", ".gif"]
 
-# Get all image folders
-@st.cache_data
-def get_folders(base_dir):
-    return sorted([f for f in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, f))])
+# Get subfolders (pages)
+subfolders = [f.name for f in os.scandir(IMAGE_ROOT_DIR) if f.is_dir()]
+selected_folder = st.sidebar.selectbox("Choose a page:", sorted(subfolders))
 
-# Get image files from selected folder
-@st.cache_data
-def load_images_from_folder(folder_path):
-    return sorted([
-        os.path.join(folder_path, f)
-        for f in os.listdir(folder_path)
-        if os.path.splitext(f.lower())[1] in IMAGE_EXTENSIONS
-    ])
+# Path to selected image folder
+folder_path = os.path.join(IMAGE_ROOT_DIR, selected_folder)
+image_files = [
+    os.path.join(folder_path, file)
+    for file in os.listdir(folder_path)
+    if os.path.splitext(file.lower())[1] in IMAGE_EXTENSIONS
+]
 
-# UI - Folder selector
-folders = get_folders(BASE_DIR)
-selected_folder = st.sidebar.selectbox("📁 Select Album", folders)
-folder_path = os.path.join(BASE_DIR, selected_folder)
+# Pagination setup
+images_per_page = 20
+page_number = st.sidebar.number_input(
+    label="Page:", min_value=1, max_value=max(1, len(image_files) // images_per_page + 1), step=1, value=1
+)
+start_idx = (page_number - 1) * images_per_page
+end_idx = start_idx + images_per_page
+paginated_images = image_files[start_idx:end_idx]
 
-# Load images
-image_files = load_images_from_folder(folder_path)
-
-# Show image count
-if not image_files:
-    st.warning("🚫 No images found in this folder.")
+# Display images in 4-column layout
+if not paginated_images:
+    st.warning("No images found in the selected folder.")
 else:
-    st.success(f"📷 Loaded {len(image_files)} images from '{selected_folder}'.")
-
-    # Display in columns
+    st.success(f"Loaded {len(paginated_images)} images from '{selected_folder}'.")
     cols = st.columns(4)
 
-    for i, img_path in enumerate(image_files):
+    for i, img_path in enumerate(sorted(paginated_images)):
         col = cols[i % 4]
-        with col:
-            try:
-                # Use thumbnail to reduce memory
-                img = Image.open(img_path)
-                img.thumbnail((600, 600))
-
+        try:
+            img = Image.open(img_path)
+            with col:
                 st.image(img, caption=os.path.basename(img_path), use_container_width=True)
-
                 with open(img_path, "rb") as file:
                     img_bytes = file.read()
-
                 st.download_button(
                     label="⬇️ Download",
                     data=img_bytes,
                     file_name=os.path.basename(img_path),
                     mime="image/jpeg",
-                    key=f"{selected_folder}-{i}"
+                    key=f"download-{i}-{selected_folder}"
                 )
-            except UnidentifiedImageError:
-                st.error(f"⚠️ Can't load: {os.path.basename(img_path)}")
+        except UnidentifiedImageError:
+            st.error(f"Could not load: {os.path.basename(img_path)}")
